@@ -101,9 +101,17 @@ class CoreNLPServer:
         self.java_options = java_options or ["-mx2g"]
 
     def start(self, stdout="devnull", stderr="devnull"):
-        """Starts the CoreNLP server
+        """Start the CoreNLP server
+
+        This method checks the status of the started server, but does **not** stop
+        the server process if those checks fail. If you want the server process
+        to be stopped in that case, either use this class as a context manager
+        (see :meth:`.__enter__()`) or catch :exc:`~corenlp.CoreNLPServerError`
+        exception and stop the server manually.
 
         :param stdout, stderr: Specifies where CoreNLP output is redirected. Valid values are 'devnull', 'stdout', 'pipe'
+        :raises CoreNLPServerError: If the server fails to start or a status check fails
+            (in which case the server process remains running).
         """
         import requests
 
@@ -138,41 +146,46 @@ class CoreNLPServer:
                 "The error was: {}".format(stderrdata.decode("ascii")),
             )
 
-        try:
-
-            for i in range(30):
-                try:
-                    response = requests.get(requests.compat.urljoin(self.url, "live"))
-                except requests.exceptions.ConnectionError:
-                    time.sleep(1)
-                else:
-                    if response.ok:
-                        break
+        for i in range(30):
+            try:
+                response = requests.get(requests.compat.urljoin(self.url, "live"))
+            except requests.exceptions.ConnectionError:
+                time.sleep(1)
             else:
-                raise CoreNLPServerError("Could not connect to the server.")
+                if response.ok:
+                    break
+        else:
+            raise CoreNLPServerError("Could not connect to the server.")
 
-            for i in range(60):
-                try:
-                    response = requests.get(requests.compat.urljoin(self.url, "ready"))
-                except requests.exceptions.ConnectionError:
-                    time.sleep(1)
-                else:
-                    if response.ok:
-                        break
+        for i in range(60):
+            try:
+                response = requests.get(requests.compat.urljoin(self.url, "ready"))
+            except requests.exceptions.ConnectionError:
+                time.sleep(1)
             else:
-                raise CoreNLPServerError("The server is not ready.")
-
-        except Exception:
-            self.popen.terminate()
-            raise
+                if response.ok:
+                    break
+        else:
+            raise CoreNLPServerError("The server is not ready.")
 
     def stop(self):
         self.popen.terminate()
         self.popen.wait()
 
     def __enter__(self):
-        self.start()
+        """Start the CoreNLP server
 
+        This method checks the status of the started server and stops the server process
+        if those checks fail. If you want the server process to **not** be stopped in that case,
+        use the :meth:`.start`/ :meth:`.stop` methods.
+
+        :raises CoreNLPServerError: If the server fails to start.
+        """
+        try:
+            self.start()
+        except CoreNLPServerError:
+            self.stop()
+            raise
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
