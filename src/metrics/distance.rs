@@ -5,29 +5,13 @@ use pyo3::prelude::*;
 use std::cmp::{max, min};
 use std::collections::HashMap;
 
-/// Calculate the Levenshtein edit-distance between two strings.
-///
-/// The edit distance is the number of characters that need to be
-/// substituted, inserted, or deleted, to transform s1 into s2.
-///
-/// This optionally allows transposition edits (Damerau-Levenshtein distance).
-///
-/// # Arguments
-/// * `s1` - First string
-/// * `s2` - Second string
-/// * `substitution_cost` - Cost of substitution (default 1)
-/// * `transpositions` - Whether to allow transposition edits (default false)
-///
-/// # Returns
-/// The edit distance as an integer
-#[pyfunction]
-#[pyo3(signature = (s1, s2, substitution_cost=1, transpositions=false))]
-pub fn edit_distance(
+/// Internal implementation of edit distance (for parallel processing)
+pub(crate) fn edit_distance_impl(
     s1: &str,
     s2: &str,
     substitution_cost: usize,
     transpositions: bool,
-) -> PyResult<usize> {
+) -> usize {
     let len1 = s1.chars().count();
     let len2 = s2.chars().count();
 
@@ -106,29 +90,37 @@ pub fn edit_distance(
         }
     }
 
-    Ok(lev[len1][len2])
+    lev[len1][len2]
 }
 
-/// Computes the Jaro similarity between 2 strings.
+/// Calculate the Levenshtein edit-distance between two strings (PyO3 wrapper).
 ///
-/// The Jaro distance between is the min no. of single-character transpositions
-/// required to change one word into another.
+/// The edit distance is the number of characters that need to be
+/// substituted, inserted, or deleted, to transform s1 into s2.
 ///
-/// Formula: jaro_sim = 0 if m = 0 else 1/3 * (m/|s_1| + m/s_2 + (m-t)/m)
-///
-/// where:
-/// - |s_i| is the length of string s_i
-/// - m is the no. of matching characters
-/// - t is the half no. of possible transpositions
+/// This optionally allows transposition edits (Damerau-Levenshtein distance).
 ///
 /// # Arguments
 /// * `s1` - First string
 /// * `s2` - Second string
+/// * `substitution_cost` - Cost of substitution (default 1)
+/// * `transpositions` - Whether to allow transposition edits (default false)
 ///
 /// # Returns
-/// The Jaro similarity as a float between 0.0 and 1.0
+/// The edit distance as an integer
 #[pyfunction]
-pub fn jaro_similarity(s1: &str, s2: &str) -> PyResult<f64> {
+#[pyo3(signature = (s1, s2, substitution_cost=1, transpositions=false))]
+pub fn edit_distance(
+    s1: &str,
+    s2: &str,
+    substitution_cost: usize,
+    transpositions: bool,
+) -> PyResult<usize> {
+    Ok(edit_distance_impl(s1, s2, substitution_cost, transpositions))
+}
+
+/// Internal implementation of Jaro similarity (for parallel processing)
+pub(crate) fn jaro_similarity_impl(s1: &str, s2: &str) -> f64 {
     let s1_chars: Vec<char> = s1.chars().collect();
     let s2_chars: Vec<char> = s2.chars().collect();
 
@@ -137,7 +129,7 @@ pub fn jaro_similarity(s1: &str, s2: &str) -> PyResult<f64> {
 
     // Handle edge cases to match Python behavior
     if len_s1 == 0 || len_s2 == 0 {
-        return Ok(0.0);  // Python returns 0 for empty strings
+        return 0.0;  // Python returns 0 for empty strings
     }
 
     // The upper bound of the distance for being a matched character
@@ -174,7 +166,7 @@ pub fn jaro_similarity(s1: &str, s2: &str) -> PyResult<f64> {
     }
 
     if matches == 0 {
-        return Ok(0.0);
+        return 0.0;
     }
 
     // Sort flagged_2 for transposition calculation
@@ -197,7 +189,57 @@ pub fn jaro_similarity(s1: &str, s2: &str) -> PyResult<f64> {
         (m - t_half) / m
     );
 
-    Ok(jaro)
+    jaro
+}
+
+/// Computes the Jaro similarity between 2 strings.
+///
+/// The Jaro distance between is the min no. of single-character transpositions
+/// required to change one word into another.
+///
+/// Formula: jaro_sim = 0 if m = 0 else 1/3 * (m/|s_1| + m/s_2 + (m-t)/m)
+///
+/// where:
+/// - |s_i| is the length of string s_i
+/// - m is the no. of matching characters
+/// - t is the half no. of possible transpositions
+///
+/// # Arguments
+/// * `s1` - First string
+/// * `s2` - Second string
+///
+/// # Returns
+/// The Jaro similarity as a float between 0.0 and 1.0
+#[pyfunction]
+pub fn jaro_similarity(s1: &str, s2: &str) -> PyResult<f64> {
+    Ok(jaro_similarity_impl(s1, s2))
+}
+
+/// Internal implementation of Jaro-Winkler similarity (for parallel processing)
+pub(crate) fn jaro_winkler_similarity_impl(
+    s1: &str,
+    s2: &str,
+    p: f64,
+    max_l: usize,
+) -> f64 {
+    // Compute the Jaro similarity
+    let jaro_sim = jaro_similarity_impl(s1, s2);
+
+    // Compute the prefix matches
+    let mut l = 0;
+    for (c1, c2) in s1.chars().zip(s2.chars()) {
+        if c1 == c2 {
+            l += 1;
+            if l == max_l {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    // Return the Jaro-Winkler similarity
+    jaro_sim + (l as f64 * p * (1.0 - jaro_sim))
 }
 
 /// The Jaro-Winkler similarity is an extension of the Jaro similarity.
@@ -225,24 +267,7 @@ pub fn jaro_winkler_similarity(
     p: f64,
     max_l: usize,
 ) -> PyResult<f64> {
-    // Compute the Jaro similarity
-    let jaro_sim = jaro_similarity(s1, s2)?;
-
-    // Compute the prefix matches
-    let mut l = 0;
-    for (c1, c2) in s1.chars().zip(s2.chars()) {
-        if c1 == c2 {
-            l += 1;
-            if l == max_l {
-                break;
-            }
-        } else {
-            break;
-        }
-    }
-
-    // Return the Jaro-Winkler similarity
-    Ok(jaro_sim + (l as f64 * p * (1.0 - jaro_sim)))
+    Ok(jaro_winkler_similarity_impl(s1, s2, p, max_l))
 }
 
 #[cfg(test)]

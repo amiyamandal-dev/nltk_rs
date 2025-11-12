@@ -308,6 +308,7 @@ pub fn cosine_distance(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use numpy::{PyArray1, PyArrayMethods};
 
     #[test]
     fn test_euclidean_distance() {

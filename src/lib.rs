@@ -7,6 +7,8 @@ mod cluster;
 
 // Re-export functions for easier access
 use metrics::distance::{edit_distance, jaro_similarity, jaro_winkler_similarity};
+use metrics::aline::aline_align_score;
+use metrics::parallel::{edit_distance_batch, jaro_similarity_batch, jaro_winkler_similarity_batch};
 use tag::hmm::{hmm_best_path, hmm_forward_probability, hmm_backward_probability};
 use cluster::kmeans::{
     kmeans_classify_vectorspace, kmeans_iteration, kmeans_centroid,
@@ -28,18 +30,31 @@ use cluster::kmeans::{
 /// - hmm_forward_probability() - Forward algorithm (alpha values)
 /// - hmm_backward_probability() - Backward algorithm (beta values)
 ///
-/// ## Phase 3: K-means Clustering (NEW)
+/// ## Phase 3: K-means Clustering
 /// - kmeans_classify_vectorspace() - Classify vector to nearest cluster
 /// - kmeans_iteration() - Single K-means iteration
 /// - kmeans_centroid() - Compute cluster centroid
 /// - euclidean_distance() - Fast Euclidean distance
 /// - cosine_distance() - Fast cosine distance
+///
+/// ## Phase 4: ALINE Phonetic Alignment
+/// - aline_align_score() - Simplified ALINE phonetic alignment score
+///
+/// ## Parallel Batch Processing
+/// - edit_distance_batch() - Compute edit distances for multiple pairs in parallel
+/// - jaro_similarity_batch() - Compute Jaro similarities for multiple pairs in parallel
+/// - jaro_winkler_similarity_batch() - Compute Jaro-Winkler similarities in parallel
 #[pymodule]
 fn nltk_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Phase 1: Distance metric functions
     m.add_function(wrap_pyfunction!(edit_distance, m)?)?;
     m.add_function(wrap_pyfunction!(jaro_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(jaro_winkler_similarity, m)?)?;
+
+    // Parallel batch processing
+    m.add_function(wrap_pyfunction!(edit_distance_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(jaro_similarity_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(jaro_winkler_similarity_batch, m)?)?;
 
     // Phase 2: HMM tagging functions
     m.add_function(wrap_pyfunction!(hmm_best_path, m)?)?;
@@ -52,6 +67,9 @@ fn nltk_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(kmeans_centroid, m)?)?;
     m.add_function(wrap_pyfunction!(euclidean_distance, m)?)?;
     m.add_function(wrap_pyfunction!(cosine_distance, m)?)?;
+
+    // Phase 4: ALINE phonetic alignment
+    m.add_function(wrap_pyfunction!(aline_align_score, m)?)?;
 
     Ok(())
 }

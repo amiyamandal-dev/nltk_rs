@@ -239,6 +239,7 @@ pub fn hmm_backward_probability<'py>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use numpy::{PyArray1, PyArray2, PyArrayMethods};
 
     #[test]
     fn test_viterbi_basic() {
