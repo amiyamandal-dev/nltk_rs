@@ -4,15 +4,21 @@ use pyo3::prelude::*;
 mod metrics;
 mod tag;
 mod cluster;
+mod tokenize;
 
 // Re-export functions for easier access
 use metrics::distance::{edit_distance, jaro_similarity, jaro_winkler_similarity};
 use metrics::aline::aline_align_score;
-use metrics::parallel::{edit_distance_batch, jaro_similarity_batch, jaro_winkler_similarity_batch};
-use tag::hmm::{hmm_best_path, hmm_forward_probability, hmm_backward_probability};
+use metrics::parallel::{
+    edit_distance_batch, jaro_similarity_batch, jaro_winkler_similarity_batch,
+};
+use tag::hmm::{hmm_backward_probability, hmm_best_path, hmm_forward_probability};
 use cluster::kmeans::{
     kmeans_classify_vectorspace, kmeans_iteration, kmeans_centroid,
     euclidean_distance, cosine_distance
+};
+use tokenize::regexp::{
+    blankline_tokenize, regexp_tokenize, regexp_tokenize_batch, wordpunct_tokenize,
 };
 
 /// A Python module implemented in Rust for NLTK optimizations.
@@ -70,6 +76,12 @@ fn nltk_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Phase 4: ALINE phonetic alignment
     m.add_function(wrap_pyfunction!(aline_align_score, m)?)?;
+
+    // Tokenization functions
+    m.add_function(wrap_pyfunction!(regexp_tokenize, m)?)?;
+    m.add_function(wrap_pyfunction!(regexp_tokenize_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(wordpunct_tokenize, m)?)?;
+    m.add_function(wrap_pyfunction!(blankline_tokenize, m)?)?;
 
     Ok(())
 }

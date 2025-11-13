@@ -75,6 +75,7 @@ from nltk.tokenize.regexp import (
     WordPunctTokenizer,
     blankline_tokenize,
     regexp_tokenize,
+    regexp_tokenize_batch,
     wordpunct_tokenize,
 )
 from nltk.tokenize.repp import ReppTokenizer
