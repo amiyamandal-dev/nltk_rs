@@ -9,6 +9,39 @@ Language Processing. NLTK requires Python version from 3.10 up to the latest 3.1
 For documentation, please visit [nltk.org](https://www.nltk.org/).
 
 
+## Rust-Accelerated Tokenizers (`nltk_rs`)
+
+`nltk_rs` now includes a high-performance implementation of NLTK's regular
+expression tokenizer suite, rewritten in Rust with [PyO3](https://pyo3.rs/).
+Key capabilities include:
+
+- Drop-in replacements for ``regexp_tokenize``, ``wordpunct_tokenize`` and
+  ``blankline_tokenize`` that seamlessly fall back to the original Python code
+  when the Rust extension is unavailable.
+- A new ``regexp_tokenize_batch`` helper that tokenizes multiple texts in
+  parallel using [Rayon](https://github.com/rayon-rs/rayon), providing
+  multi-core speed-ups for large corpora.
+- Full support for standard ``re`` flags such as ``MULTILINE`` and ``DOTALL``
+  along with graceful fallback for locale-aware patterns.
+
+
+### Building and Publishing to PyPI
+
+The project is configured for distribution via
+[PyPI](https://pypi.org/project/nltk-rs/) using ``maturin``. To build and upload
+release artifacts:
+
+```bash
+pip install maturin
+maturin build --release
+maturin publish --username <pypi-username>
+```
+
+The package metadata (name, authorship, classifiers and README) is sourced from
+``pyproject.toml`` so the generated wheels and source archives are ready for
+upload without additional configuration.
+
+
 ## Contributing
 
 Do you want to contribute to NLTK development? Great!

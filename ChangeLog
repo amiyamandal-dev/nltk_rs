@@ -1,3 +1,10 @@
+Version 0.2.0 (nltk_rs) 2025-11-13
+
+* Ported regular-expression tokenizers to Rust with PyO3 bindings and
+  parallel batch processing (Amiya Mandal).
+* Refreshed packaging metadata and README guidance for PyPI releases.
+* Removed legacy optimization summary documents that are no longer maintained.
+
 Version 3.9.2 2025-10-01
 
 * Update download checksums to use SHA256 in built index

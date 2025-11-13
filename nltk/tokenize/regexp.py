@@ -68,6 +68,18 @@ argument.  This differs from the conventions used by Python's
 
 import re
 
+try:
+    from nltk_rs import (
+        blankline_tokenize as _rust_blankline_tokenize,
+        regexp_tokenize as _rust_regexp_tokenize,
+        regexp_tokenize_batch as _rust_regexp_tokenize_batch,
+        wordpunct_tokenize as _rust_wordpunct_tokenize,
+    )
+
+    _RUST_REGEXP_AVAILABLE = True
+except ImportError:
+    _RUST_REGEXP_AVAILABLE = False
+
 from nltk.tokenize.api import TokenizerI
 from nltk.tokenize.util import regexp_span_tokenize
 
@@ -208,13 +220,61 @@ def regexp_tokenize(
     discard_empty=True,
     flags=re.UNICODE | re.MULTILINE | re.DOTALL,
 ):
+    """Return a tokenized copy of *text*.
+
+    See :class:`.RegexpTokenizer` for descriptions of the arguments.
     """
-    Return a tokenized copy of *text*.  See :class:`.RegexpTokenizer`
-    for descriptions of the arguments.
-    """
+
+    if _RUST_REGEXP_AVAILABLE:
+        try:
+            return _rust_regexp_tokenize(text, pattern, gaps, discard_empty, flags)
+        except Exception:
+            pass
+
     tokenizer = RegexpTokenizer(pattern, gaps, discard_empty, flags)
     return tokenizer.tokenize(text)
 
 
-blankline_tokenize = BlanklineTokenizer().tokenize
-wordpunct_tokenize = WordPunctTokenizer().tokenize
+def regexp_tokenize_batch(
+    texts,
+    pattern,
+    gaps=False,
+    discard_empty=True,
+    flags=re.UNICODE | re.MULTILINE | re.DOTALL,
+):
+    """Tokenize multiple texts using the same regular-expression pattern."""
+
+    texts = list(texts)
+
+    if _RUST_REGEXP_AVAILABLE:
+        try:
+            return _rust_regexp_tokenize_batch(texts, pattern, gaps, discard_empty, flags)
+        except Exception:
+            pass
+
+    tokenizer = RegexpTokenizer(pattern, gaps, discard_empty, flags)
+    return [tokenizer.tokenize(text) for text in texts]
+
+
+def blankline_tokenize(text):
+    """Split *text* on blank-line boundaries."""
+
+    if _RUST_REGEXP_AVAILABLE:
+        try:
+            return _rust_blankline_tokenize(text)
+        except Exception:
+            pass
+
+    return BlanklineTokenizer().tokenize(text)
+
+
+def wordpunct_tokenize(text):
+    """Split *text* into alphanumeric and non-alphanumeric tokens."""
+
+    if _RUST_REGEXP_AVAILABLE:
+        try:
+            return _rust_wordpunct_tokenize(text)
+        except Exception:
+            pass
+
+    return WordPunctTokenizer().tokenize(text)

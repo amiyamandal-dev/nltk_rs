@@ -8,6 +8,7 @@
 
 ## Contributors
 
+- Amiya Mandal
 - Tom Aarsen
 - Rami Al-Rfou'
 - Mark Amery
